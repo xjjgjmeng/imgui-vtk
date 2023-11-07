@@ -16,8 +16,8 @@ add_executable(${EXEC_NAME} main.cpp)
 find_package(OpenGL REQUIRED)
 target_link_libraries(${EXEC_NAME} OpenGL::GL)
 if (APPLE)
-	# Ignore macOS OpenGL deprecation warnings
-	target_compile_definitions(${EXEC_NAME} PRIVATE GL_SILENCE_DEPRECATION)
+# Ignore macOS OpenGL deprecation warnings
+target_compile_definitions(${EXEC_NAME} PRIVATE GL_SILENCE_DEPRECATION)
 endif()
 
 # OpenGL Loader - GL3W
@@ -28,12 +28,12 @@ set(gl3w_dir ${CMAKE_CURRENT_SOURCE_DIR}/gl3w)
 set(gl3w_inc ${gl3w_dir}/include)
 set(gl3w_src ${gl3w_dir}/src/gl3w.c)
 if (EXISTS ${gl3w_src})
-	message(STATUS "Found gl3w source files")
+message(STATUS "Found gl3w source files")
 else()
-	execute_process(COMMAND python3 gl3w_gen.py WORKING_DIRECTORY ${gl3w_dir}) # use python or python3
-	if (NOT EXISTS ${gl3w_src})
-		message(FATAL_ERROR "Could not generate gl3w source files")
-	endif()
+execute_process(COMMAND python3 gl3w_gen.py WORKING_DIRECTORY ${gl3w_dir}) # use python or python3
+if (NOT EXISTS ${gl3w_src})
+message(FATAL_ERROR "Could not generate gl3w source files")
+endif()
 endif()
 add_library(gl3w STATIC ${gl3w_src})
 target_include_directories(gl3w PUBLIC ${gl3w_inc})
@@ -57,31 +57,20 @@ target_link_libraries(imgui glfw)
 target_link_libraries(${EXEC_NAME} imgui)
 
 # VTK
-find_package(VTK COMPONENTS 
-  CommonCore
-  CommonColor
-  CommonDataModel
-  FiltersCore
-  InteractionStyle
-  RenderingCore
-  RenderingFreeType
-  RenderingGL2PSOpenGL2
-  RenderingOpenGL2
-  QUIET
-)
+find_package(VTK REQUIRED)
 if (NOT VTK_FOUND)
-  message(FATAL_ERROR "VTK not found!")
-  return()
+message(FATAL_ERROR "VTK not found!")
+return()
 endif()
 
 if (VTK_VERSION VERSION_LESS "9.0.0")
-  include(${VTK_USE_FILE})
+include(${VTK_USE_FILE})
 else()
-  # vtk_module_autoinit is needed
-  vtk_module_autoinit(
-    TARGETS ${EXEC_NAME}
-    MODULES ${VTK_LIBRARIES}
-  )
+# vtk_module_autoinit is needed
+vtk_module_autoinit(
+TARGETS ${EXEC_NAME}
+MODULES ${VTK_LIBRARIES}
+)
 endif()
 message (STATUS "VTK Version: ${VTK_VERSION}")
 
@@ -98,5 +87,7 @@ target_link_libraries(${EXEC_NAME} imgui_vtk_viewer)
 # But if you link dynamically, you may need to link some native libraries on macOS:
 # target_link_libraries(${EXEC_NAME} "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
 if (UNIX AND NOT APPLE)
-  target_link_libraries(${EXEC_NAME} ${CMAKE_THREAD_LIBS_INIT} ${X11_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(${EXEC_NAME} ${CMAKE_THREAD_LIBS_INIT} ${X11_LIBRARIES} ${CMAKE_DL_LIBS})
 endif()
+
+add_subdirectory(DebugView)

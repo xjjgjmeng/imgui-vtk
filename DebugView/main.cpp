@@ -1,4 +1,4 @@
-// Standard Library
+﻿// Standard Library
 #include <iostream>
 
 // OpenGL Loader
@@ -41,13 +41,19 @@ int main(int argc, char* argv[])
 // GLSL 130
 	const char* glsl_version = "#version 130";
 #endif
+	// 获取主显示器的分辨率
+	GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
+	int screenWidth = mode->width;
+	int screenHeight = mode->height;
 
 	// Create window with graphics context
-	GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui VTKViewer Example", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Dear ImGui VTKViewer Example", NULL, NULL);
 	if (window == NULL) {
 		return 1;
 	}
 
+	glfwMaximizeWindow(window);
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
 

@@ -32,6 +32,21 @@
 
 #include "Common.h"
 
+// Helper to display a little (?) mark which shows a tooltip when hovered.
+// In your own code you may want to display an actual icon if you are using a merged icon fonts (see docs/FONTS.md)
+static void HelpMarker(const char* desc)
+{
+	ImGui::TextDisabled("(?)");
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+	{
+		ImGui::BeginTooltip();
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		ImGui::TextUnformatted(desc);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+}
+
 void orientationMarker()
 {
 	static VtkViewer vtkViewer;
@@ -274,136 +289,15 @@ void cameratest()
 	auto camera = vtkViewer.getRenderer()->GetActiveCamera();
 	constexpr auto myOff = 1;
 	myroll = vtkViewer.getRenderer()->GetActiveCamera()->GetRoll();
-	if (ImGui::DragInt("roll", &myroll, 1.f, -360, 360))
-	{
-		vtkViewer.getRenderer()->GetActiveCamera()->SetRoll(myroll);
-	}
-	auto viewup = camera->GetViewUp();
-	if (ImGui::Button("Reset"))
-	{
-		vtkViewer.getRenderer()->ResetCamera();
-	}
-	ImGui::Text("Up:[%lf,%lf,%lf]", viewup[0], viewup[1], viewup[2]);
-	double pos[3];
-	camera->GetPosition(pos);
-	ImGui::Text("Pos:[%lf,%lf,%lf]", pos[0], pos[1], pos[2]);
-	double fp[3];
-	camera->GetFocalPoint(fp);
-	ImGui::Text("FocalPoint:[%lf,%lf,%lf]", fp[0], fp[1], fp[2]);
-	ImGui::Text("Distance:%lf", camera->GetDistance());
-	//ImGui::AlignTextToFramePadding();
-	{
-		ImGui::Text("Roll:");
-		ImGui::SameLine();
-		float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-		ImGui::PushButtonRepeat(true);
-		if (ImGui::ArrowButton("##Roll_left", ImGuiDir_Left)) { camera->Roll(-myOff); }
-		ImGui::SameLine(0.0f, spacing);
-		if (ImGui::ArrowButton("##Roll_right", ImGuiDir_Right)) { camera->Roll(myOff); }
-		ImGui::PopButtonRepeat();
-		ImGui::SameLine();
-		ImGui::Text("%d", int(camera->GetRoll()));
-	}
-	{
-		ImGui::Text("Dolly:");
-		ImGui::SameLine();
-		float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-		ImGui::PushButtonRepeat(true);
-		if (ImGui::ArrowButton("##Dolly_left", ImGuiDir_Left)) { camera->Dolly(-myOff); }
-		ImGui::SameLine(0.0f, spacing);
-		if (ImGui::ArrowButton("##Dolly_right", ImGuiDir_Right)) { camera->Dolly(myOff); }
-		ImGui::PopButtonRepeat();
-		//ImGui::SameLine();
-		//ImGui::Text("%d", int(camera->GetDolly()));
-	}
-	{
-		ImGui::Text("Elevation:");
-		ImGui::SameLine();
-		float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-		ImGui::PushButtonRepeat(true);
-		if (ImGui::ArrowButton("##Elevation_left", ImGuiDir_Left)) { camera->Elevation(-myOff); }
-		ImGui::SameLine(0.0f, spacing);
-		if (ImGui::ArrowButton("##Elevation_right", ImGuiDir_Right)) { camera->Elevation(myOff); }
-		ImGui::PopButtonRepeat();
-		//ImGui::SameLine();
-		//ImGui::Text("%d", int(camera->GetDolly()));
-	}
-	{
-		ImGui::Text("Azimuth:");
-		ImGui::SameLine();
-		float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-		ImGui::PushButtonRepeat(true);
-		if (ImGui::ArrowButton("##Azimuth_left", ImGuiDir_Left)) { camera->Azimuth(-myOff); }
-		ImGui::SameLine(0.0f, spacing);
-		if (ImGui::ArrowButton("##Azimuth_right", ImGuiDir_Right)) { camera->Azimuth(myOff); }
-		ImGui::PopButtonRepeat();
-		//ImGui::SameLine();
-		//ImGui::Text("%d", int(camera->GetDolly()));
-	}
-	{
-		ImGui::Text("ViewAngle:");
-		ImGui::SameLine();
-		float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-		ImGui::PushButtonRepeat(true);
-		if (ImGui::ArrowButton("##SetViewAngle_left", ImGuiDir_Left)) { camera->SetViewAngle(camera->GetViewAngle() - myOff); }
-		ImGui::SameLine(0.0f, spacing);
-		if (ImGui::ArrowButton("##SetViewAngle_right", ImGuiDir_Right)) { camera->SetViewAngle(camera->GetViewAngle() + myOff); }
-		ImGui::PopButtonRepeat();
-		ImGui::SameLine();
-		ImGui::Text("%lf", camera->GetViewAngle());
-	}
-	{
-		ImGui::Text("Zoom:");
-		ImGui::SameLine();
-		float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
-		ImGui::PushButtonRepeat(true);
-		if (ImGui::ArrowButton("##Zoom_left", ImGuiDir_Left)) { camera->Zoom(0.9); }
-		ImGui::SameLine(0.0f, spacing);
-		if (ImGui::ArrowButton("##Zoom_right", ImGuiDir_Right)) { camera->Zoom(1.1); }
-		ImGui::PopButtonRepeat();
-	}
-	if (ImGui::Button(u8"水平翻转"))
-	{
-		camera->Azimuth(180.);
-	}ImGui::SameLine();
-	if (ImGui::Button(u8"垂直翻转"))
-	{
-		camera->Roll(180.);
-		camera->Azimuth(180.);
-	}ImGui::SameLine();
-	if (ImGui::Button("Mirror"))
-	{
-		//double imageActorBound[6]{ 0 };
-		//panData->getImageActor()->GetBounds(imageActorBound);
-		//double* pCenter = panData->getImageActor()->GetCenter();
-		//panData->getRenderer()->GetActiveCamera()->SetPosition(pCenter[0], pCenter[1], -1* panData->getRenderer()->GetActiveCamera()->GetDistance());
-	}
-	if (ImGui::Button(u8"旋转0"))
-	{
-		camera->SetViewUp(0.0, 1.0, 0.0);
-	}
-	ImGui::SameLine();
-	if (ImGui::Button(u8"旋转90"))
-	{
-		camera->SetViewUp(-1.0, 0.0, 0.0);
-	}
-	ImGui::SameLine();
-	if (ImGui::Button(u8"旋转180"))
-	{
-		camera->SetViewUp(0.0, -1.0, 0.0);
-	}
-	ImGui::SameLine();
-	if (ImGui::Button(u8"旋转270"))
-	{
-		camera->SetViewUp(1.0, 0.0, 0.0);
-	}
-
+	static auto cube = vtkSmartPointer<vtkAnnotatedCubeActor>::New();
 
 	if (!init)
 	{
 		init = true;
 
 		vtkNew<vtkNamedColors> colors;
+		auto renderer = vtkViewer.getRenderer();
+#if 0
 		auto cylinder = vtkSmartPointer<vtkConeSource>::New();
 		cylinder->SetHeight(1.0);
 		cylinder->SetRadius(1.0);
@@ -412,8 +306,8 @@ void cameratest()
 		cylindermapper->SetInputConnection(cylinder->GetOutputPort());
 		auto cylinderactor = vtkSmartPointer<vtkActor>::New();
 		cylinderactor->SetMapper(cylindermapper);
-		auto renderer = vtkViewer.getRenderer();
 		renderer->AddActor(cylinderactor);
+#endif
 #if 0
 		auto cube = vtkSmartPointer<vtkCubeSource>::New();
 		cube->SetXLength(5);
@@ -430,28 +324,288 @@ void cameratest()
 		ca->GetProperty()->SetEdgeColor(colors->GetColor3d("Red").GetData());
 		renderer->AddActor(ca);
 #endif
-		auto axesActor = vtkSmartPointer<vtkAnnotatedCubeActor>::New();
-		axesActor->SetXPlusFaceText("L");
-		axesActor->SetXMinusFaceText("R");
-		axesActor->SetYMinusFaceText("I");
-		axesActor->SetYPlusFaceText("S");
-		axesActor->SetZMinusFaceText("P");
-		axesActor->SetZPlusFaceText("A");
-		axesActor->GetTextEdgesProperty()->SetColor(
+		
+#if 1
+		cube->SetXPlusFaceText("L");
+		cube->SetXMinusFaceText("R");
+		cube->SetYMinusFaceText("I");
+		cube->SetYPlusFaceText("S");
+		cube->SetZMinusFaceText("P");
+		cube->SetZPlusFaceText("A");
+#endif
+		cube->GetTextEdgesProperty()->SetColor(
 			colors->GetColor3d("Red").GetData());
 		//axesActor->GetTextEdgesProperty()->SetLineWidth(2);
-		axesActor->GetCubeProperty()->SetColor(colors->GetColor3d("Blue").GetData());
-		renderer->AddActor(axesActor);
+		cube->GetCubeProperty()->SetColor(colors->GetColor3d("Blue").GetData());
+		renderer->AddActor(cube);
 
 		static vtkNew<vtkCameraOrientationWidget> camOrientManipulator;
 		camOrientManipulator->SetParentRenderer(renderer);
 		camOrientManipulator->On();
 
+		vtkNew<vtkCallbackCommand> modifiedCallback;
+		modifiedCallback->SetCallback([](vtkObject * caller,long unsigned int eventId,void* vtkNotUsed(clientData),void* vtkNotUsed(callData))
+		{
+			std::cout << caller->GetClassName() << " modified " << eventId << std::endl;
+			vtkCamera* camera = static_cast<vtkCamera*>(caller);
+		});
+		camera->AddObserver(vtkCommand::ModifiedEvent, modifiedCallback);
+
 		renderer->SetBackground(0., 0., 0.);
 		renderer->ResetCamera();
 	}
 
-	vtkViewer.render();
+	{
+		ImGui::BeginChild("ChildL", ImVec2(ImGui::GetContentRegionAvail().x * 0.25f, ImGui::GetContentRegionAvail().y));
+		{
+			if (ImGui::DragInt("roll", &myroll, 1.f, -360, 360))
+			{
+				vtkViewer.getRenderer()->GetActiveCamera()->SetRoll(myroll);
+			}
+			auto viewup = camera->GetViewUp();
+			if (ImGui::Button("Reset"))
+			{
+				vtkViewer.getRenderer()->ResetCamera();
+			}
+			ImGui::Text("Up:[%lf,%lf,%lf]", viewup[0], viewup[1], viewup[2]);
+			double pos[3];
+			camera->GetPosition(pos);
+			ImGui::Text("Pos:[%lf,%lf,%lf]", pos[0], pos[1], pos[2]);
+			double fp[3];
+			camera->GetFocalPoint(fp);
+			if (ImGui::DragScalarN("FocalPoint", ImGuiDataType_Double, fp, 3, 0.01f))
+			{
+				camera->SetFocalPoint(fp);
+			}
+			//ImGui::Text("FocalPoint:[%lf,%lf,%lf]", fp[0], fp[1], fp[2]);
+			{
+				ImGui::Text("Distance:");
+				ImGui::SameLine();
+				float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				ImGui::PushButtonRepeat(true);
+				if (ImGui::ArrowButton("##SetDistance_left", ImGuiDir_Left)) { camera->SetDistance(camera->GetDistance() - myOff); }
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::ArrowButton("##SetDistance_right", ImGuiDir_Right)) { camera->SetDistance(camera->GetDistance() + myOff); }
+				ImGui::PopButtonRepeat();
+				ImGui::SameLine();
+				ImGui::Text("%lf", camera->GetDistance());
+			}
+			//ImGui::AlignTextToFramePadding();
+			{
+				ImGui::Text("Roll:");
+				ImGui::SameLine();
+				float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				ImGui::PushButtonRepeat(true);
+				if (ImGui::ArrowButton("##Roll_left", ImGuiDir_Left)) { camera->Roll(-myOff); }
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::ArrowButton("##Roll_right", ImGuiDir_Right)) { camera->Roll(myOff); }
+				ImGui::PopButtonRepeat();
+				ImGui::SameLine();
+				ImGui::Text("%d", int(camera->GetRoll()));
+				ImGui::SameLine();
+				HelpMarker(R"(Rotate the camera about the direction of projection.
+This will spin the camera about its axis.)");
+			}
+			{
+				ImGui::Text("Dolly:");
+				ImGui::SameLine();
+				float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				ImGui::PushButtonRepeat(true);
+				if (ImGui::ArrowButton("##Dolly_left", ImGuiDir_Left)) { camera->Dolly(-myOff); }
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::ArrowButton("##Dolly_right", ImGuiDir_Right)) { camera->Dolly(myOff); }
+				ImGui::PopButtonRepeat();
+				ImGui::SameLine();
+				HelpMarker(R"(Divide the camera's distance from the focal point by the given dolly value.
+Use a value greater than one to dolly-in toward the focal point, and use a value less than one to dolly-out away from the focal point.)");
+				//ImGui::SameLine();
+				//ImGui::Text("%d", int(camera->GetDolly()));
+			}
+			{
+				ImGui::Text("Elevation:");
+				ImGui::SameLine();
+				float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				ImGui::PushButtonRepeat(true);
+				if (ImGui::ArrowButton("##Elevation_left", ImGuiDir_Left)) { camera->Elevation(-myOff); }
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::ArrowButton("##Elevation_right", ImGuiDir_Right)) { camera->Elevation(myOff); }
+				ImGui::PopButtonRepeat();
+				ImGui::SameLine();
+				HelpMarker(R"(Rotate the camera about the cross product of the negative of the direction of projection and the view up vector, using the focal point as the center of rotation.
+The result is a vertical rotation of the scene.)");
+			}
+			{
+				ImGui::Text("Azimuth:");
+				ImGui::SameLine();
+				float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				ImGui::PushButtonRepeat(true);
+				if (ImGui::ArrowButton("##Azimuth_left", ImGuiDir_Left)) { camera->Azimuth(-myOff); }
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::ArrowButton("##Azimuth_right", ImGuiDir_Right)) { camera->Azimuth(myOff); }
+				ImGui::PopButtonRepeat();
+				ImGui::SameLine();
+				HelpMarker(R"(Rotate the camera about the view up vector centered at the focal point.
+Note that the view up vector is whatever was set via SetViewUp, and is not necessarily perpendicular to the direction of projection.
+The result is a horizontal rotation of the camera.)");
+			}
+			{
+				ImGui::Text("Yaw:");
+				ImGui::SameLine();
+				float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				ImGui::PushButtonRepeat(true);
+				if (ImGui::ArrowButton("##Yaw_left", ImGuiDir_Left)) { camera->Yaw(-myOff); }
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::ArrowButton("##Yaw_right", ImGuiDir_Right)) { camera->Yaw(myOff); }
+				ImGui::PopButtonRepeat();
+				ImGui::SameLine();
+				HelpMarker(R"(Rotate the focal point about the view up vector, using the camera's position as the center of rotation.
+Note that the view up vector is whatever was set via SetViewUp, and is not necessarily perpendicular to the direction of projection.
+The result is a horizontal rotation of the scene.)");
+			}
+			{
+				ImGui::Text("ViewAngle:");
+				ImGui::SameLine();
+				float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				ImGui::PushButtonRepeat(true);
+				if (ImGui::ArrowButton("##SetViewAngle_left", ImGuiDir_Left)) { camera->SetViewAngle(camera->GetViewAngle() - myOff); }
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::ArrowButton("##SetViewAngle_right", ImGuiDir_Right)) { camera->SetViewAngle(camera->GetViewAngle() + myOff); }
+				ImGui::PopButtonRepeat();
+				ImGui::SameLine();
+				ImGui::Text("%lf", camera->GetViewAngle());
+			}
+			{
+				ImGui::Text("Zoom:");
+				ImGui::SameLine();
+				float spacing = ImGui::GetStyle().ItemInnerSpacing.x;
+				ImGui::PushButtonRepeat(true);
+				if (ImGui::ArrowButton("##Zoom_left", ImGuiDir_Left)) { camera->Zoom(0.9); }
+				ImGui::SameLine(0.0f, spacing);
+				if (ImGui::ArrowButton("##Zoom_right", ImGuiDir_Right)) { camera->Zoom(1.1); }
+				ImGui::PopButtonRepeat();
+				ImGui::SameLine();
+				HelpMarker(R"(In perspective mode, decrease the view angle by the specified factor.
+In parallel mode, decrease the parallel scale by the specified factor.
+A value greater than 1 is a zoom-in, a value less than 1 is a zoom-out.
+@note This setting is ignored when UseExplicitProjectionTransformMatrix is true.)");
+			}
+			if (ImGui::Button(u8"水平翻转"))
+			{
+				camera->Azimuth(180.);
+			}ImGui::SameLine();
+			if (ImGui::Button(u8"垂直翻转"))
+			{
+				camera->Roll(180.);
+				camera->Azimuth(180.);
+			}ImGui::SameLine();
+			if (ImGui::Button("Mirror"))
+			{
+				//double imageActorBound[6]{ 0 };
+				//panData->getImageActor()->GetBounds(imageActorBound);
+				//double* pCenter = panData->getImageActor()->GetCenter();
+				//panData->getRenderer()->GetActiveCamera()->SetPosition(pCenter[0], pCenter[1], -1* panData->getRenderer()->GetActiveCamera()->GetDistance());
+			}
+			if (ImGui::Button(u8"旋转0"))
+			{
+				camera->SetViewUp(0.0, 1.0, 0.0);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"旋转90"))
+			{
+				camera->SetViewUp(-1.0, 0.0, 0.0);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"旋转180"))
+			{
+				camera->SetViewUp(0.0, -1.0, 0.0);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"旋转270"))
+			{
+				camera->SetViewUp(1.0, 0.0, 0.0);
+			}
+			{
+				static float near, far;
+				double rangeVal[2];
+				camera->GetClippingRange(rangeVal);
+				near = rangeVal[0];
+				far = rangeVal[1];
+				if (ImGui::DragFloatRange2("ClippingRange", &near, &far, 0.1f, 0.0f, 100.0f, "Near: %lf", "Far: %lf"))
+				{
+					rangeVal[0] = near;
+					rangeVal[1] = far;
+					camera->SetClippingRange(rangeVal);
+				}
+			}
+			{
+				const auto center = cube->GetCenter();
+				const auto bounds = cube->GetBounds();
+				constexpr auto ratio = 4;
+
+				if (ImGui::Button("Superior"))
+				{
+					camera->SetViewUp(0, 0, -1);
+					camera->SetPosition(center[0], center[1] + (bounds[3] - bounds[2])* ratio, center[2]);
+					camera->SetFocalPoint(center);
+					camera->SetClippingRange(0.01, 10000);
+					cube->SetOrigin(center);
+
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Inferior"))
+				{
+					camera->SetViewUp(0, 0, -1);
+					camera->SetPosition(center[0], center[1] - (bounds[3] - bounds[2]) * ratio, center[2]);
+					camera->SetFocalPoint(center);
+					camera->SetClippingRange(0.01, 10000);
+					cube->SetOrigin(center);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Left"))
+				{
+					camera->SetViewUp(0, 1, 0);
+					camera->SetPosition(center[0] + (bounds[1] - bounds[0]) * ratio, center[1], center[2]);
+					camera->SetFocalPoint(center);
+					camera->SetClippingRange(0.01, 10000);
+					cube->SetOrigin(center);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Right"))
+				{
+					camera->SetViewUp(0, 1, 0);
+					camera->SetPosition(center[0] - (bounds[1] - bounds[0]) * ratio, center[1], center[2]);
+					camera->SetFocalPoint(center);
+					camera->SetClippingRange(0.01, 10000);
+					cube->SetOrigin(center);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Anterior"))
+				{
+					camera->SetViewUp(0, 1, 0);
+					camera->SetPosition(center[0], center[1], center[2] + (bounds[5] - bounds[4]) * ratio);
+					camera->SetFocalPoint(center);
+					camera->SetClippingRange(0.01, 10000);
+					cube->SetOrigin(center);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Posterior"))
+				{
+					camera->SetViewUp(0, 1, 0);
+					camera->SetPosition(center[0], center[1], center[2] - (bounds[5] - bounds[4]) * ratio);
+					camera->SetFocalPoint(center);
+					camera->SetClippingRange(0.01, 10000);
+					cube->SetOrigin(center);
+				}
+			}
+		}
+		ImGui::EndChild();
+	}
+	ImGui::SameLine();
+	{
+		ImGui::BeginChild("ChildR");
+		vtkViewer.render();
+		ImGui::EndChild();
+	}
 }
 
 void createImageData()

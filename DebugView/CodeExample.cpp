@@ -20,8 +20,11 @@
 #include <vtkTexture.h>
 #include <vtkLight.h>
 #include <vtkCamera.h>
+#include <vtkRendererCollection.h>
+#include <vtkCoordinate.h>
 #include <vtkCubeSource.h>
 #include <vtkConeSource.h>
+#include <vtkAbstractPicker.h>
 #include <vtkAnnotatedCubeActor.h>
 #include <vtkOrientationMarkerWidget.h>
 #include <vtkCameraOrientationWidget.h>
@@ -210,6 +213,71 @@ void leftRightScreen()
 	}
 
 	vtkViewer.render();
+}
+
+void coordinateTest()
+{
+	static VtkViewer myView;
+	static bool init = false;
+
+	static int eventPosition[2]{};
+	static double worldPosition[3]{};
+	static double worldPosition_[3]{};
+
+	if (!init)
+	{
+		init = true;
+
+		auto l = vtkSmartPointer<vtkCylinderSource>::New();
+		auto lmapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+		lmapper->SetInputConnection(l->GetOutputPort());
+		auto lactor = vtkSmartPointer<vtkActor>::New();
+		lactor->SetMapper(lmapper);
+		auto lren = myView.getRenderer();
+		lren->AddActor(lactor);
+		myView.getRenderer()->SetBackground(0.1, 0, 0);
+
+		auto callback = vtkSmartPointer<vtkCallbackCommand>::New();
+		callback->SetCallback([](vtkObject* caller, unsigned long eventId, void* clientData, void* callData)
+			{
+				vtkRenderWindowInteractor* interactor = static_cast<vtkRenderWindowInteractor*>(caller);
+				interactor->GetEventPosition(eventPosition[0], eventPosition[1]);
+				vtkRenderer* renderer = interactor->FindPokedRenderer(eventPosition[0], eventPosition[1]);
+				if (renderer != nullptr)
+				{
+					vtkCoordinate* coordinate = vtkCoordinate::New();
+					coordinate->SetCoordinateSystemToDisplay();
+					coordinate->SetValue(eventPosition[0], eventPosition[1]);
+					double* worldPoint = coordinate->GetComputedWorldValue(renderer);
+					std::memcpy(worldPosition, worldPoint, sizeof(worldPosition));
+					coordinate->Delete();
+					// 另一种办法
+					renderer->SetDisplayPoint(eventPosition[0], eventPosition[1], 0);
+					renderer->DisplayToWorld();
+					renderer->GetWorldPoint(worldPosition_);
+
+					std::cout << "Picking pixel: " << interactor->GetEventPosition()[0]
+						<< " " << interactor->GetEventPosition()[1] << std::endl;
+					interactor->GetPicker()->Pick(interactor->GetEventPosition()[0],
+						interactor->GetEventPosition()[1],
+						0, // always zero.
+						interactor->GetRenderWindow()
+						->GetRenderers()
+						->GetFirstRenderer());
+					double picked[3];
+					interactor->GetPicker()->GetPickPosition(picked);
+					std::cout << "Picked value: " << picked[0] << " " << picked[1] << " "
+						<< picked[2] << std::endl;
+				}
+			});
+		myView.getInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, callback);
+	}
+
+	ImGui::InputScalarN("EventPosition", ImGuiDataType_S32, eventPosition, static_cast<int>(std::size(eventPosition)), nullptr, nullptr, nullptr, ImGuiInputTextFlags_ReadOnly);
+	ImGui::InputScalarN("WorldPosition", ImGuiDataType_Double, worldPosition, static_cast<int>(std::size(worldPosition)), nullptr, nullptr, nullptr, ImGuiInputTextFlags_ReadOnly);
+	ImGui::InputScalarN("WorldPosition_", ImGuiDataType_Double, worldPosition_, static_cast<int>(std::size(worldPosition_)), nullptr, nullptr, nullptr, ImGuiInputTextFlags_ReadOnly);
+
+	myView.render();
 }
 
 void planeAndTexture()
@@ -757,6 +825,11 @@ void renderExample()
 		ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 		if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
 		{
+			if (ImGui::BeginTabItem("Coordinate"))
+			{
+				coordinateTest();
+				ImGui::EndTabItem();
+			}
 			if (ImGui::BeginTabItem("Camera"))
 			{
 				cameratest();

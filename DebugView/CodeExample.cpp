@@ -25,6 +25,7 @@
 #include <vtkCubeSource.h>
 #include <vtkConeSource.h>
 #include <vtkAbstractPicker.h>
+#include <vtkLineSource.h>
 #include <vtkAnnotatedCubeActor.h>
 #include <vtkOrientationMarkerWidget.h>
 #include <vtkCameraOrientationWidget.h>
@@ -34,6 +35,126 @@
 #include <VtkViewer.h>
 
 #include "Common.h"
+
+struct ExampleAppLog
+{
+	ImGuiTextBuffer     Buf;
+	ImGuiTextFilter     Filter;
+	ImVector<int>       LineOffsets; // Index to lines offset. We maintain this with AddLog() calls.
+	bool                AutoScroll;  // Keep scrolling if already at the bottom.
+
+	ExampleAppLog()
+	{
+		AutoScroll = true;
+		Clear();
+	}
+
+	void    Clear()
+	{
+		Buf.clear();
+		LineOffsets.clear();
+		LineOffsets.push_back(0);
+	}
+
+	void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
+	{
+		int old_size = Buf.size();
+		va_list args;
+		va_start(args, fmt);
+		Buf.appendfv(fmt, args);
+		va_end(args);
+		for (int new_size = Buf.size(); old_size < new_size; old_size++)
+			if (Buf[old_size] == '\n')
+				LineOffsets.push_back(old_size + 1);
+	}
+
+	void    Draw(const char* title, bool* p_open = NULL)
+	{
+		if (!ImGui::Begin(title, p_open))
+		{
+			ImGui::End();
+			return;
+		}
+
+		// Options menu
+		if (ImGui::BeginPopup("Options"))
+		{
+			ImGui::Checkbox("Auto-scroll", &AutoScroll);
+			ImGui::EndPopup();
+		}
+
+		// Main window
+		if (ImGui::Button("Options"))
+			ImGui::OpenPopup("Options");
+		ImGui::SameLine();
+		bool clear = ImGui::Button("Clear");
+		ImGui::SameLine();
+		bool copy = ImGui::Button("Copy");
+		ImGui::SameLine();
+		Filter.Draw("Filter", -100.0f);
+
+		ImGui::Separator();
+		ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+		if (clear)
+			Clear();
+		if (copy)
+			ImGui::LogToClipboard();
+
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+		const char* buf = Buf.begin();
+		const char* buf_end = Buf.end();
+		if (Filter.IsActive())
+		{
+			// In this example we don't use the clipper when Filter is enabled.
+			// This is because we don't have random access to the result of our filter.
+			// A real application processing logs with ten of thousands of entries may want to store the result of
+			// search/filter.. especially if the filtering function is not trivial (e.g. reg-exp).
+			for (int line_no = 0; line_no < LineOffsets.Size; line_no++)
+			{
+				const char* line_start = buf + LineOffsets[line_no];
+				const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+				if (Filter.PassFilter(line_start, line_end))
+					ImGui::TextUnformatted(line_start, line_end);
+			}
+		}
+		else
+		{
+			// The simplest and easy way to display the entire buffer:
+			//   ImGui::TextUnformatted(buf_begin, buf_end);
+			// And it'll just work. TextUnformatted() has specialization for large blob of text and will fast-forward
+			// to skip non-visible lines. Here we instead demonstrate using the clipper to only process lines that are
+			// within the visible area.
+			// If you have tens of thousands of items and their processing cost is non-negligible, coarse clipping them
+			// on your side is recommended. Using ImGuiListClipper requires
+			// - A) random access into your data
+			// - B) items all being the  same height,
+			// both of which we can handle since we have an array pointing to the beginning of each line of text.
+			// When using the filter (in the block of code above) we don't have random access into the data to display
+			// anymore, which is why we don't use the clipper. Storing or skimming through the search result would make
+			// it possible (and would be recommended if you want to search through tens of thousands of entries).
+			ImGuiListClipper clipper;
+			clipper.Begin(LineOffsets.Size);
+			while (clipper.Step())
+			{
+				for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+				{
+					const char* line_start = buf + LineOffsets[line_no];
+					const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+					ImGui::TextUnformatted(line_start, line_end);
+				}
+			}
+			clipper.End();
+		}
+		ImGui::PopStyleVar();
+
+		if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+			ImGui::SetScrollHereY(1.0f);
+
+		ImGui::EndChild();
+		ImGui::End();
+	}
+};
 
 // Helper to display a little (?) mark which shows a tooltip when hovered.
 // In your own code you may want to display an actual icon if you are using a merged icon fonts (see docs/FONTS.md)
@@ -759,6 +880,281 @@ void createImageData()
 	vtkViewer12.render();
 }
 
+void towActorWithLine()
+{
+	static VtkViewer vtkViewer;
+	static bool init = false;
+
+	static auto lactor = vtkSmartPointer<vtkActor>::New();
+	static auto ractor = vtkSmartPointer<vtkActor>::New();
+	static vtkSmartPointer<vtkLineSource> lineSource;
+	static vtkSmartPointer<vtkActor> lineActor;
+
+	if (!init)
+	{
+		init = true;
+
+		auto renderer = vtkViewer.getRenderer();
+
+		auto l = vtkSmartPointer<vtkCylinderSource>::New();
+		auto lmapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+		lmapper->SetInputConnection(l->GetOutputPort());
+		
+		lactor->SetMapper(lmapper);
+		lactor->GetProperty()->SetOpacity(0.3);
+		lactor->SetPosition(1, 1, 1);
+		renderer->AddActor(lactor);
+
+		auto r = vtkSmartPointer<vtkCylinderSource>::New();
+		auto rmapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+		rmapper->SetInputConnection(r->GetOutputPort());
+		
+		ractor->SetMapper(rmapper);
+		ractor->GetProperty()->SetOpacity(0.3);
+		renderer->AddActor(ractor);
+
+		lineSource = vtkSmartPointer<vtkLineSource>::New();
+		lineSource->SetPoint1(2.0, 2.0, 0.0);  // 起点坐标 
+		lineSource->SetPoint2(3.0, 3.0, 0.0);  // 终点坐标
+		lineSource->Update();
+
+		vtkSmartPointer<vtkPolyDataMapper> mapper1 = vtkSmartPointer<vtkPolyDataMapper>::New();
+		mapper1->SetInputConnection(lineSource->GetOutputPort());
+
+		lineActor = vtkSmartPointer<vtkActor>::New();
+		lineActor->SetMapper(mapper1);
+		renderer->AddActor(lineActor);
+
+		renderer->SetBackground(0, 0, 0);
+		renderer->ResetCamera();
+	}
+
+	auto reconnection = []
+		{
+			auto lCenter = lactor->GetCenter();
+			auto rCenter = ractor->GetCenter();
+			lineSource->SetPoint1(lCenter);
+			lineSource->SetPoint2(rCenter);
+		};
+
+	double lPos[3];
+	lactor->GetPosition(lPos);
+	if (ImGui::DragScalarN("LPosition", ImGuiDataType_Double, lPos, static_cast<int>(std::size(lPos)), 0.01))
+	{
+		lactor->SetPosition(lPos);
+		reconnection();
+	}
+	double rPos[3];
+	ractor->GetPosition(rPos);
+	if (ImGui::DragScalarN("RPosition", ImGuiDataType_Double, rPos, static_cast<int>(std::size(rPos)), 0.01))
+	{
+		ractor->SetPosition(rPos);
+		reconnection();
+	}
+
+	static float lineColor[4] = { 0.4f, 0.7f, 0.0f, 0.5f };
+	if (ImGui::ColorEdit4("LineColor", lineColor))
+	{
+		lineActor->GetProperty()->SetColor(static_cast<double>(lineColor[0]), static_cast<double>(lineColor[1]), static_cast<double>(lineColor[2]));
+		lineActor->GetProperty()->SetOpacity(static_cast<double>(lineColor[3]));
+	}
+
+	static bool bUseFXAA = vtkViewer.getRenderer()->GetUseFXAA();
+	if (ImGui::Checkbox("UseFXAA", &bUseFXAA))
+	{
+		vtkViewer.getRenderer()->SetUseFXAA(bUseFXAA);
+	}
+
+	auto MultiSamples = vtkViewer.getRenderWindow()->GetMultiSamples();
+	if (ImGui::DragInt("MultiSamples", &MultiSamples, 1, 0,100))
+	{
+		vtkViewer.getRenderWindow()->SetMultiSamples(MultiSamples);
+	}
+	
+	//vtkViewer.getRenderer()->SetBackground(1, 1, 1);
+	vtkViewer.render();
+}
+
+void SubjectObserverTest()
+{
+	static VtkViewer vtkViewer;
+	static bool init = false;
+
+	static auto lactor = vtkSmartPointer<vtkActor>::New();
+	static auto ractor = vtkSmartPointer<vtkActor>::New();
+	
+	static ExampleAppLog log;
+
+	class MouseInteractorStyle : public vtkInteractorStyleTrackballCamera {
+	public:
+		static MouseInteractorStyle* New() {
+			return new MouseInteractorStyle;
+		}
+		void OnLeftButtonDown() override
+		{
+			log.AddLog("%.1f Interactor Style\n", ImGui::GetTime());
+			vtkInteractorStyleTrackballCamera::OnLeftButtonDown();
+		}
+	};
+
+	class MyCallback : public vtkCommand
+	{
+	public:
+		MyCallback() = default;
+		~MyCallback() = default;
+
+		static MyCallback* New()
+		{
+			return new MyCallback;
+		}
+		void Execute(vtkObject* caller, unsigned long eventId,
+			void* vtkNotUsed(callData)) override
+		{
+			if (vtkCommand::LeftButtonPressEvent == eventId)
+			{
+				log.AddLog("%.1f MyCallback\n", ImGui::GetTime());
+			}
+		}
+	};
+
+	if (!init)
+	{
+		init = true;
+
+		auto renderer = vtkViewer.getRenderer();
+
+		auto l = vtkSmartPointer<vtkCylinderSource>::New();
+		auto lmapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+		lmapper->SetInputConnection(l->GetOutputPort());
+
+		lactor->SetMapper(lmapper);
+		lactor->GetProperty()->SetOpacity(0.3);
+		lactor->SetPosition(1, 1, 1);
+		renderer->AddActor(lactor);
+
+		renderer->SetBackground(0, 0, 0);
+		renderer->ResetCamera();
+
+		auto style = vtkSmartPointer<MouseInteractorStyle>::New();
+		vtkViewer.getInteractor()->SetInteractorStyle(style);
+	}
+
+	log.Draw("Example: Log");
+	//static vtkNew<vtkCallbackCommand> cb;
+	//static vtkNew<vtkCallbackCommand> cb_style;
+	static bool myOnceFlag = false;
+	static bool useMyCallback = false;
+	static float priority = 0;
+	static std::list<unsigned long> interactorTags;
+	static std::list<unsigned long> styleTags;
+	ImGui::DragFloat("Priority", &priority);
+	if (ImGui::Button("AddInteractorObserver"))
+	{
+		vtkCommand* pCmd = nullptr;
+		if (useMyCallback)
+		{
+			pCmd = MyCallback::New();
+		}
+		else
+		{
+			//vtkNew<vtkCallbackCommand> cb;
+			auto cb = vtkCallbackCommand::New();
+			pCmd = cb;
+			cb->SetCallback([](vtkObject* caller, long unsigned int eventId, void* clientData, void* callData)
+				{
+					//auto cylinderSource = static_cast<MouseInteractorStyle*>(caller);
+					//int resolution = cylinderSource->GetResolution();
+					//cylinderSource->RemoveObserver(*static_cast<unsigned long*>(clientData));
+					log.AddLog("%.1f Interactor Observer %d\n", ImGui::GetTime(), *static_cast<unsigned long*>(clientData));
+					if (myOnceFlag)
+					{
+					}
+				});
+			cb->SetClientData(new unsigned long);
+			cb->SetAbortFlagOnExecute(myOnceFlag);
+		}
+		const auto myTag = vtkViewer.getInteractor()->AddObserver(vtkCommand::LeftButtonPressEvent, pCmd, priority);
+		//*static_cast<unsigned long*>(cb->GetClientData()) = myTag;
+		if (auto p = vtkCallbackCommand::SafeDownCast(pCmd))
+		{
+			*static_cast<unsigned long*>(p->GetClientData()) = myTag;
+		}
+		interactorTags.push_back(myTag);
+	}
+
+	{
+		decltype(interactorTags) removedTag;
+		for (auto i : interactorTags)
+		{
+			ImGui::SameLine();
+			if (ImGui::Button(("RemoveInteractorObserver" + std::to_string(i)).c_str()))
+			{
+				vtkViewer.getInteractor()->RemoveObserver(i);
+				removedTag.push_back(i);
+			}
+		}
+		for (auto i : removedTag)
+		{
+			interactorTags.remove(i);
+		}
+	}
+	//if (ImGui::Button("RemoveInteractorObserver"))
+	//{
+	//	vtkViewer.getInteractor()->RemoveObserver(cb);
+	//}
+	ImGui::Checkbox("Once", &myOnceFlag);
+	ImGui::Checkbox("UseMyCallback", &useMyCallback);
+	if (ImGui::Button("AddStyleObserver"))
+	{
+		vtkCommand* pCmd = nullptr;
+		if (useMyCallback)
+		{
+			pCmd = MyCallback::New();
+		}
+		else
+		{
+			auto cb_style = vtkCallbackCommand::New();
+			pCmd = cb_style;
+			cb_style->SetCallback([](vtkObject* caller, long unsigned int eventId, void* clientData, void* callData)
+				{
+					auto cylinderSource = static_cast<MouseInteractorStyle*>(caller);;
+					log.AddLog("%.1f Style Observer %d\n", ImGui::GetTime(), *static_cast<unsigned long*>(clientData));
+					if (myOnceFlag) {}
+				});
+			cb_style->SetClientData(new unsigned long);
+			cb_style->SetAbortFlagOnExecute(myOnceFlag);
+		}
+		const auto myTag = vtkViewer.getInteractor()->GetInteractorStyle()->AddObserver(vtkCommand::LeftButtonPressEvent, pCmd, priority);
+		if (auto p = vtkCallbackCommand::SafeDownCast(pCmd))
+		{
+			*static_cast<unsigned long*>(p->GetClientData()) = myTag;
+		}
+		styleTags.push_back(myTag);
+	}
+	//if (ImGui::Button("RemoveStyleObserver"))
+	//{
+	//	vtkViewer.getInteractor()->GetInteractorStyle()->RemoveObserver(cb_style);
+	//}
+	{
+		decltype(styleTags) removedTag;
+		for (auto i : styleTags)
+		{
+			ImGui::SameLine();
+			if (ImGui::Button(("RemoveStyleObserver" + std::to_string(i)).c_str()))
+			{
+				vtkViewer.getInteractor()->GetInteractorStyle()->RemoveObserver(i);
+				removedTag.push_back(i);
+			}
+		}
+		for (auto i : removedTag)
+		{
+			styleTags.remove(i);
+		}
+	}
+
+	vtkViewer.render();
+}
+
 void showOutline()
 {
 	static bool init = false;
@@ -825,6 +1221,16 @@ void renderExample()
 		ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 		if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
 		{
+			if (ImGui::BeginTabItem("TwoActorWithLine"))
+			{
+				towActorWithLine();
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("SubjectObserver"))
+			{
+				SubjectObserverTest();
+				ImGui::EndTabItem();
+			}
 			if (ImGui::BeginTabItem("Coordinate"))
 			{
 				coordinateTest();

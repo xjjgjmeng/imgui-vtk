@@ -1,5 +1,7 @@
 ﻿#include "CodeExample.h"
 
+#include <string_view>
+
 #include <vtkImageData.h>
 #include <vtkImageActor.h>
 #include <vtkImageMapper3D.h>
@@ -18,17 +20,28 @@
 #include <vtkJPEGReader.h>
 #include <vtkPlaneSource.h>
 #include <vtkTexture.h>
+#include <vtkTextProperty.h>
+#include <vtkTextActor.h>
 #include <vtkLight.h>
 #include <vtkCamera.h>
 #include <vtkRendererCollection.h>
 #include <vtkCoordinate.h>
 #include <vtkCubeSource.h>
 #include <vtkConeSource.h>
+#include <vtkSphereSource.h>
+#include <vtkCaptionRepresentation.h>
 #include <vtkAbstractPicker.h>
 #include <vtkLineSource.h>
+#include <vtkCaptionActor2D.h>
+#include <vtkCubeSource.h>
+#include <vtkConeSource.h>
+#include <vtkCaptionWidget.h>
 #include <vtkAnnotatedCubeActor.h>
 #include <vtkOrientationMarkerWidget.h>
 #include <vtkCameraOrientationWidget.h>
+#include <vtkfmt/core.h>
+#include <vtkfmt/format.h>
+#include <vtkfmt/chrono.h>
 
 #include <imgui.h>
 
@@ -56,6 +69,11 @@ struct ExampleAppLog
 		LineOffsets.push_back(0);
 	}
 
+	void Add(const std::string_view& log)
+	{
+		AddLog(fmt::format("{} {}\n", std::chrono::system_clock::now(), log).c_str());
+	}
+
 	void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
 	{
 		int old_size = Buf.size();
@@ -68,91 +86,88 @@ struct ExampleAppLog
 				LineOffsets.push_back(old_size + 1);
 	}
 
-	void    Draw(const char* title, bool* p_open = NULL)
+	void    Draw()
 	{
-		if (!ImGui::Begin(title, p_open))
+		if (ImGui::BeginChild("LogChild", ImVec2(ImGui::GetContentRegionAvail().x * 0.25f, ImGui::GetContentRegionAvail().y)))
 		{
-			ImGui::End();
-			return;
-		}
-
-		// Options menu
-		if (ImGui::BeginPopup("Options"))
-		{
-			ImGui::Checkbox("Auto-scroll", &AutoScroll);
-			ImGui::EndPopup();
-		}
-
-		// Main window
-		if (ImGui::Button("Options"))
-			ImGui::OpenPopup("Options");
-		ImGui::SameLine();
-		bool clear = ImGui::Button("Clear");
-		ImGui::SameLine();
-		bool copy = ImGui::Button("Copy");
-		ImGui::SameLine();
-		Filter.Draw("Filter", -100.0f);
-
-		ImGui::Separator();
-		ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-
-		if (clear)
-			Clear();
-		if (copy)
-			ImGui::LogToClipboard();
-
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-		const char* buf = Buf.begin();
-		const char* buf_end = Buf.end();
-		if (Filter.IsActive())
-		{
-			// In this example we don't use the clipper when Filter is enabled.
-			// This is because we don't have random access to the result of our filter.
-			// A real application processing logs with ten of thousands of entries may want to store the result of
-			// search/filter.. especially if the filtering function is not trivial (e.g. reg-exp).
-			for (int line_no = 0; line_no < LineOffsets.Size; line_no++)
+			// Options menu
+			if (ImGui::BeginPopup("Options"))
 			{
-				const char* line_start = buf + LineOffsets[line_no];
-				const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
-				if (Filter.PassFilter(line_start, line_end))
-					ImGui::TextUnformatted(line_start, line_end);
+				ImGui::Checkbox("Auto-scroll", &AutoScroll);
+				ImGui::EndPopup();
 			}
-		}
-		else
-		{
-			// The simplest and easy way to display the entire buffer:
-			//   ImGui::TextUnformatted(buf_begin, buf_end);
-			// And it'll just work. TextUnformatted() has specialization for large blob of text and will fast-forward
-			// to skip non-visible lines. Here we instead demonstrate using the clipper to only process lines that are
-			// within the visible area.
-			// If you have tens of thousands of items and their processing cost is non-negligible, coarse clipping them
-			// on your side is recommended. Using ImGuiListClipper requires
-			// - A) random access into your data
-			// - B) items all being the  same height,
-			// both of which we can handle since we have an array pointing to the beginning of each line of text.
-			// When using the filter (in the block of code above) we don't have random access into the data to display
-			// anymore, which is why we don't use the clipper. Storing or skimming through the search result would make
-			// it possible (and would be recommended if you want to search through tens of thousands of entries).
-			ImGuiListClipper clipper;
-			clipper.Begin(LineOffsets.Size);
-			while (clipper.Step())
+
+			// Main window
+			if (ImGui::Button("Options"))
+				ImGui::OpenPopup("Options");
+			ImGui::SameLine();
+			bool clear = ImGui::Button("Clear");
+			ImGui::SameLine();
+			bool copy = ImGui::Button("Copy");
+			ImGui::SameLine();
+			Filter.Draw("Filter", -100.0f);
+
+			ImGui::Separator();
+			ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+			if (clear)
+				Clear();
+			if (copy)
+				ImGui::LogToClipboard();
+
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+			const char* buf = Buf.begin();
+			const char* buf_end = Buf.end();
+			if (Filter.IsActive())
 			{
-				for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+				// In this example we don't use the clipper when Filter is enabled.
+				// This is because we don't have random access to the result of our filter.
+				// A real application processing logs with ten of thousands of entries may want to store the result of
+				// search/filter.. especially if the filtering function is not trivial (e.g. reg-exp).
+				for (int line_no = 0; line_no < LineOffsets.Size; line_no++)
 				{
 					const char* line_start = buf + LineOffsets[line_no];
 					const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
-					ImGui::TextUnformatted(line_start, line_end);
+					if (Filter.PassFilter(line_start, line_end))
+						ImGui::TextUnformatted(line_start, line_end);
 				}
 			}
-			clipper.End();
+			else
+			{
+				// The simplest and easy way to display the entire buffer:
+				//   ImGui::TextUnformatted(buf_begin, buf_end);
+				// And it'll just work. TextUnformatted() has specialization for large blob of text and will fast-forward
+				// to skip non-visible lines. Here we instead demonstrate using the clipper to only process lines that are
+				// within the visible area.
+				// If you have tens of thousands of items and their processing cost is non-negligible, coarse clipping them
+				// on your side is recommended. Using ImGuiListClipper requires
+				// - A) random access into your data
+				// - B) items all being the  same height,
+				// both of which we can handle since we have an array pointing to the beginning of each line of text.
+				// When using the filter (in the block of code above) we don't have random access into the data to display
+				// anymore, which is why we don't use the clipper. Storing or skimming through the search result would make
+				// it possible (and would be recommended if you want to search through tens of thousands of entries).
+				ImGuiListClipper clipper;
+				clipper.Begin(LineOffsets.Size);
+				while (clipper.Step())
+				{
+					for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+					{
+						const char* line_start = buf + LineOffsets[line_no];
+						const char* line_end = (line_no + 1 < LineOffsets.Size) ? (buf + LineOffsets[line_no + 1] - 1) : buf_end;
+						ImGui::TextUnformatted(line_start, line_end);
+					}
+				}
+				clipper.End();
+			}
+			ImGui::PopStyleVar();
+
+			if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+				ImGui::SetScrollHereY(1.0f);
+
+			ImGui::EndChild();
+			ImGui::EndChild();
 		}
-		ImGui::PopStyleVar();
-
-		if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
-			ImGui::SetScrollHereY(1.0f);
-
-		ImGui::EndChild();
-		ImGui::End();
 	}
 };
 
@@ -297,6 +312,91 @@ void orientationMarker()
 	}
 
 	vtkViewer.render();
+}
+
+void anchorTest()
+{
+	static VtkViewer myView;
+	static bool init = false;
+	static vtkNew<vtkCaptionWidget> captionWidget;
+	static vtkNew<vtkCaptionRepresentation> captionRepresentation;
+	if (!init)
+	{
+		init = true;
+
+		vtkNew<vtkNamedColors> colors;
+
+		// Sphere
+		vtkNew<vtkSphereSource> sphereSource;
+		sphereSource->Update();
+
+		vtkNew<vtkPolyDataMapper> mapper;
+		mapper->SetInputConnection(sphereSource->GetOutputPort());
+
+		static vtkNew<vtkActor> actor;
+		actor->SetMapper(mapper);
+		actor->GetProperty()->SetColor(
+			colors->GetColor3d("DarkOliveGreen").GetData());
+		myView.getRenderer()->AddActor(actor);
+
+		// Create the widget and its representation
+		
+		captionRepresentation->GetCaptionActor2D()->SetCaption("Test caption");
+		captionRepresentation->GetCaptionActor2D()
+			->GetTextActor()
+			->GetTextProperty()
+			->SetFontSize(100);
+
+		double pos[3] = { .5, 0, 0 };
+		captionRepresentation->SetAnchorPosition(pos);
+		
+		captionWidget->SetInteractor(myView.getInteractor());
+		captionWidget->SetRepresentation(captionRepresentation);
+		myView.getRenderer()->GetActiveCamera(); // 不写这句报错：WorldToView: no active camera, cannot compute world to view, returning 0,0,0
+		myView.getRenderer()->GetActiveCamera()->Azimuth(90);
+		myView.getRenderer()->ResetCamera();
+		captionWidget->On();
+		myView.getRenderer()->SetBackground(colors->GetColor3d("Blue").GetData());
+	}
+	
+	bool captionOn = captionWidget->GetEnabled();
+	if (ImGui::Checkbox("On", &captionOn))
+	{
+		captionWidget->SetEnabled(captionOn);
+	}
+	ImGui::SameLine();
+	bool bLeader = captionRepresentation->GetCaptionActor2D()->GetLeader();
+	if (ImGui::Checkbox("Leader", &bLeader))
+	{
+		captionRepresentation->GetCaptionActor2D()->SetLeader(bLeader);
+	}
+	ImGui::SameLine();
+	bool bBorder = captionRepresentation->GetCaptionActor2D()->GetBorder();
+	if (ImGui::Checkbox("Border", &bBorder))
+	{
+		captionRepresentation->GetCaptionActor2D()->SetBorder(bBorder);
+	}
+
+	double pos[3];
+	captionRepresentation->GetAnchorPosition(pos);
+	if (ImGui::DragScalarN("AnchorPosition", ImGuiDataType_Double, pos, 3, 0.001))
+	{
+		captionRepresentation->SetAnchorPosition(pos);
+	}
+
+	int fontSize = captionRepresentation->GetCaptionActor2D()
+		->GetTextActor()
+		->GetTextProperty()
+		->GetFontSize();
+	if (ImGui::SliderInt("FontSize", &fontSize, 1,1000))
+	{
+		captionRepresentation->GetCaptionActor2D()
+			->GetTextActor()
+			->GetTextProperty()
+			->SetFontSize(fontSize);
+	}
+
+	myView.render();
 }
 
 void leftRightScreen()
@@ -992,7 +1092,7 @@ void SubjectObserverTest()
 		}
 		void OnLeftButtonDown() override
 		{
-			log.AddLog("%.1f Interactor Style\n", ImGui::GetTime());
+			log.AddLog(fmt::format("{} Interactor Style\n", std::chrono::system_clock::now()).c_str());
 			vtkInteractorStyleTrackballCamera::OnLeftButtonDown();
 		}
 	};
@@ -1012,7 +1112,7 @@ void SubjectObserverTest()
 		{
 			if (vtkCommand::LeftButtonPressEvent == eventId)
 			{
-				log.AddLog("%.1f MyCallback\n", ImGui::GetTime());
+				log.Add("MyCallback");
 			}
 		}
 	};
@@ -1028,8 +1128,6 @@ void SubjectObserverTest()
 		lmapper->SetInputConnection(l->GetOutputPort());
 
 		lactor->SetMapper(lmapper);
-		lactor->GetProperty()->SetOpacity(0.3);
-		lactor->SetPosition(1, 1, 1);
 		renderer->AddActor(lactor);
 
 		renderer->SetBackground(0, 0, 0);
@@ -1039,7 +1137,7 @@ void SubjectObserverTest()
 		vtkViewer.getInteractor()->SetInteractorStyle(style);
 	}
 
-	log.Draw("Example: Log");
+
 	//static vtkNew<vtkCallbackCommand> cb;
 	//static vtkNew<vtkCallbackCommand> cb_style;
 	static bool myOnceFlag = false;
@@ -1065,7 +1163,7 @@ void SubjectObserverTest()
 					//auto cylinderSource = static_cast<MouseInteractorStyle*>(caller);
 					//int resolution = cylinderSource->GetResolution();
 					//cylinderSource->RemoveObserver(*static_cast<unsigned long*>(clientData));
-					log.AddLog("%.1f Interactor Observer %d\n", ImGui::GetTime(), *static_cast<unsigned long*>(clientData));
+					log.Add(fmt::format("Interactor Observer {}", *static_cast<unsigned long*>(clientData)));
 					if (myOnceFlag)
 					{
 					}
@@ -1118,7 +1216,7 @@ void SubjectObserverTest()
 			cb_style->SetCallback([](vtkObject* caller, long unsigned int eventId, void* clientData, void* callData)
 				{
 					auto cylinderSource = static_cast<MouseInteractorStyle*>(caller);;
-					log.AddLog("%.1f Style Observer %d\n", ImGui::GetTime(), *static_cast<unsigned long*>(clientData));
+					log.Add(fmt::format("Style Observer {}", *static_cast<unsigned long*>(clientData)));
 					if (myOnceFlag) {}
 				});
 			cb_style->SetClientData(new unsigned long);
@@ -1152,7 +1250,11 @@ void SubjectObserverTest()
 		}
 	}
 
+	log.Draw();
+	ImGui::SameLine();
+	ImGui::BeginChild("view");
 	vtkViewer.render();
+	ImGui::EndChild();
 }
 
 void showOutline()
@@ -1221,14 +1323,19 @@ void renderExample()
 		ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 		if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
 		{
-			if (ImGui::BeginTabItem("TwoActorWithLine"))
+			if (ImGui::BeginTabItem("Anchor"))
 			{
-				towActorWithLine();
+				anchorTest();
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("SubjectObserver"))
 			{
 				SubjectObserverTest();
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("TwoActorWithLine"))
+			{
+				towActorWithLine();
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Coordinate"))

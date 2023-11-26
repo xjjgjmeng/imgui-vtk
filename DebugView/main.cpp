@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport / Platform Windows'
+	//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport / Platform Windows'
 	io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/simhei.ttf", 18.f, nullptr, io.Fonts->GetGlyphRangesChineseFull());
 
 	// Setup Dear ImGui style
@@ -98,7 +98,12 @@ int main(int argc, char* argv[])
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
+		ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::Begin("My window", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
 		renderExample();
+		ImGui::End();
+	
 
 		ImGui::Render();
 

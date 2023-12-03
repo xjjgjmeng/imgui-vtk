@@ -41,9 +41,11 @@
 #include <vtkOrientationMarkerWidget.h>
 #include <vtkCameraOrientationWidget.h>
 #include <vtkPolyDataMapper2D.h>
+#include <vtkStdString.h>
 #include <vtkfmt/core.h>
 #include <vtkfmt/format.h>
 #include <vtkfmt/chrono.h>
+#include <vtkfmt/ranges.h>
 
 #include <imgui.h>
 
@@ -120,6 +122,24 @@ namespace
 			const auto b = lp0y - k * lp0x;
 			return std::abs(k*x0 - y0 + b) / std::sqrt(k * k + 1);
 		}
+	}
+}
+
+namespace
+{
+	auto getTextActor()
+	{
+		auto text = vtkSmartPointer<vtkTextActor>::New();
+		text->GetTextProperty()->SetFontFamily(VTK_FONT_FILE);
+		text->GetTextProperty()->SetFontFile("C:/Windows/Fonts/simhei.ttf");
+		text->GetTextProperty()->SetColor(0, 1, 0);
+		text->GetTextProperty()->SetOpacity(0.8);
+		text->GetTextProperty()->SetBackgroundColor(1, 0, 0);
+		text->GetTextProperty()->SetBackgroundOpacity(0.5);
+		text->GetTextProperty()->SetFontSize(18);
+		text->GetTextProperty()->SetJustification(VTK_TEXT_RIGHT);
+		//text->GetPositionCoordinate()->SetCoordinateSystemToWorld();
+		return text;
 	}
 }
 
@@ -520,13 +540,14 @@ void distanceTest()
 
 	auto updateProjectPoint = []
 		{
-			const auto pPoint = pointPolyData->GetPoint(pid[0]);
+			const double pPoint[3] = { pointPolyData->GetPoint(pid[0])[0], pointPolyData->GetPoint(pid[0])[1] , pointPolyData->GetPoint(pid[0])[2] };
 			const auto lp0 = lineSource->GetPoint1();
 			const auto lp1 = lineSource->GetPoint2();
 			const auto [x, y] = ::projectionFromPoint2Line(lp0, lp1, pPoint);
 
 			static vtkSmartPointer<vtkLineSource> sphereSource;
-			static auto text = vtkSmartPointer<vtkTextActor>::New();
+			static auto text = ::getTextActor();
+			static auto projectPointText = ::getTextActor();
 			if (!sphereSource.GetPointer())
 			{
 				sphereSource = vtkSmartPointer<vtkLineSource>::New();
@@ -537,19 +558,16 @@ void distanceTest()
 				actor->SetMapper(mapper);
 				actor->GetProperty()->SetColor(1, 1, 0);
 				myView.addActor(actor);
-				text->GetTextProperty()->SetColor(0, 1, 0);
-				text->GetTextProperty()->SetOpacity(0.5);
-				text->GetTextProperty()->SetBackgroundColor(1, 0, 0);
-				text->GetTextProperty()->SetBackgroundOpacity(0.5);
-				text->GetTextProperty()->SetFontSize(18);
-				text->GetTextProperty()->SetJustification(VTK_TEXT_RIGHT);
-				//text->GetPositionCoordinate()->SetCoordinateSystemToWorld();
 				myView.addActor(text);
+				myView.addActor(projectPointText);
 			}
+			const double projectPoint[3] = { x, y, 0 };
 			sphereSource->SetPoint1(pPoint);
-			sphereSource->SetPoint2(x, y, 0);
+			sphereSource->SetPoint2(projectPoint);
+			projectPointText->SetPosition(const_cast<double*>(projectPoint)); // vtk??!!
+			projectPointText->SetInput(fmt::format(u8"投影坐标:{::.2f}\n线段长度:{:.2f}", projectPoint, std::sqrt(vtkMath::Distance2BetweenPoints(lp0, lp1))).c_str());
 			text->SetPosition((pPoint[0] + x) / 2, (pPoint[1] + y) / 2);
-			text->SetInput(fmt::format("{:.2f}",distancePointToLine2(pPoint, lp0, lp1)).c_str());
+			text->SetInput(fmt::format(u8"点到直线的投影距离:{:.2f}\n点和投影点的距离:{:.2f}",distancePointToLine2(pPoint, lp0, lp1), std::sqrt(vtkMath::Distance2BetweenPoints(projectPoint, pPoint))).c_str());
 		};
 
 	if (!init)

@@ -52,7 +52,7 @@
 #include <VtkViewer.h>
 
 #include "Common.h"
-
+#if 0
 namespace
 {
 	// 点p到直线（lineP0，lineP1）的投影坐标
@@ -142,7 +142,8 @@ namespace
 		return text;
 	}
 }
-
+#endif
+#if 0
 struct ExampleAppLog
 {
 	ImGuiTextBuffer     Buf;
@@ -279,7 +280,8 @@ static void HelpMarker(const char* desc)
 		ImGui::EndTooltip();
 	}
 }
-
+#endif
+#if 0
 void orientationMarker()
 {
 	static VtkViewer vtkViewer;
@@ -407,7 +409,8 @@ void orientationMarker()
 
 	vtkViewer.render();
 }
-
+#endif
+#if 0
 void anchorTest()
 {
 	static VtkViewer myView;
@@ -492,7 +495,8 @@ void anchorTest()
 
 	myView.render();
 }
-
+#endif
+#if 0
 void leftRightScreen()
 {
 	static VtkViewer vtkViewer;
@@ -529,7 +533,8 @@ void leftRightScreen()
 
 	vtkViewer.render();
 }
-
+#endif
+#if 0
 void distanceTest()
 {
 	static VtkViewer myView;
@@ -625,7 +630,8 @@ void distanceTest()
 	}
 	myView.render();
 }
-
+#endif
+#if 0
 void coordinateTest()
 {
 	static VtkViewer myView;
@@ -694,7 +700,8 @@ void coordinateTest()
 
 	myView.render();
 }
-
+#endif
+#if 0
 void planeAndTexture()
 {
 	static VtkViewer vtkViewer;
@@ -722,7 +729,8 @@ void planeAndTexture()
 
 	vtkViewer.render();
 }
-
+#endif
+#if 0
 void lighttest()
 {
 	static VtkViewer vtkViewer;
@@ -762,7 +770,8 @@ void lighttest()
 
 	vtkViewer.render();
 }
-
+#endif
+#if 0
 void cameratest()
 {
 	static VtkViewer vtkViewer;
@@ -1138,7 +1147,8 @@ A value greater than 1 is a zoom-in, a value less than 1 is a zoom-out.
 		ImGui::EndChild();
 	}
 }
-
+#endif
+#if 0
 void createImageData()
 {
 	static VtkViewer vtkViewer12;
@@ -1173,7 +1183,8 @@ void createImageData()
 
 	vtkViewer12.render();
 }
-
+#endif
+#if 0
 void towActorWithLine()
 {
 	static VtkViewer vtkViewer;
@@ -1268,7 +1279,8 @@ void towActorWithLine()
 	//vtkViewer.getRenderer()->SetBackground(1, 1, 1);
 	vtkViewer.render();
 }
-
+#endif
+#if 0
 void SubjectObserverTest()
 {
 	static VtkViewer vtkViewer;
@@ -1460,7 +1472,8 @@ void SubjectObserverTest()
 	vtkViewer.render();
 	ImGui::EndChild();
 }
-
+#endif
+#if 0
 void showOutline()
 {
 	static bool init = false;
@@ -1516,7 +1529,7 @@ void showOutline()
 	}
 	vtkViewer12.render();
 }
-
+#endif
 
 
 void renderExample()
@@ -1527,66 +1540,90 @@ void renderExample()
 		ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 		if (ImGui::BeginTabBar("MyTabBar", tab_bar_flags))
 		{
+#if 0
 			if (ImGui::BeginTabItem("Distance"))
 			{
 				distanceTest();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem("Anchor"))
 			{
 				anchorTest();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem("SubjectObserver"))
 			{
 				SubjectObserverTest();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem("TwoActorWithLine"))
 			{
 				towActorWithLine();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem("Coordinate"))
 			{
 				coordinateTest();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem("Camera"))
 			{
 				cameratest();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem("Cylinder"))
 			{
 				showOutline();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem(u8"创建vtkImageData"))
 			{
 				createImageData();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem(u8"左右屏"))
 			{
 				leftRightScreen();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem(u8"平面和2D纹理"))
 			{
 				planeAndTexture();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem(u8"灯光"))
 			{
 				lighttest();
 				ImGui::EndTabItem();
 			}
+#endif
+#if 0
 			if (ImGui::BeginTabItem(u8"方向指示"))
 			{
 				orientationMarker();
 				ImGui::EndTabItem();
 			}
+#endif
 			ImGui::EndTabBar();
 		}
 		ImGui::Separator();
